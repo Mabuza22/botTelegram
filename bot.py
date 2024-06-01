@@ -22,6 +22,38 @@ bot = TeleBot(API_KEY)
 # - endereco
 
 
+# FUNÇÃO PARA MENU DE ALTERAÇÃO DE CADASTRO
+@bot.message_handler(commands=['alterarCadastro'])
+def altCadastro(mensagem):
+    entrada = mensagem.json
+    idCliente = entrada['from']['id']  
+    escolha = str(entrada['text'])[1:]
+    cliente, aCompletar = verificaCliente(idCliente)
+    
+    resposta = ''
+    resposta += f"""\
+Suas informações atuais são:
+
+ - NOME : {cliente['nome']}
+ - ENDEREÇO : {cliente['endereco']}
+ - TELEFONE : {cliente['telefone']}
+
+Caso queira alterar algo, selecione uma das opções abaixo:
+
+/nome
+
+/endereco
+
+/telefone
+
+Se deseja cancelar a alteração, selecioen a opção abaixo : 
+
+/cancelar_cadastro
+"""
+    bot.reply_to(mensagem,resposta)
+
+
+
 # FUNÇÃO PARA FINALIZAR O PEDIDO DE MANEIRA POSITIVA OU NEGATIVA
 @bot.message_handler(commands=['finalizar','cancelar'])
 def fim(mensagem):
@@ -66,6 +98,7 @@ def seleciona(mensagem):
     escolha = str(entrada['text'])[1:]
     
     cliente, aCompletar = verificaCliente(idCliente)
+    valortotal = cliente['total']
     
     if cliente['statusPedido'] != 'atendendo' or len(aCompletar) > 0:
         resposta = "Algo de errado aconteceu!"
@@ -88,6 +121,8 @@ def seleciona(mensagem):
 
         removeProduto(escolha)
         atualizaDado('pedido',carrinho,idCliente)
+        valortotal += disponiveis[escolha]
+        atualizaDado('total',valortotal,idCliente)
 
         resposta = "Escolha registrada com sucesso!\n\n"
 
@@ -106,7 +141,8 @@ def seleciona(mensagem):
 
     disponiveis = verificaProdutos()
     for disp in disponiveis:
-        resposta += f'/{disp}\n\n'
+        valor = "{:.2f}".format(disponiveis[disp]/100).replace('.',',')
+        resposta += f'/{disp} : R${valor}\n\n'
     bot.reply_to(mensagem, resposta) 
 
     ##############
@@ -119,6 +155,9 @@ def seleciona(mensagem):
         # resposta += 'Seu carrinho atual é:\n\n'
         for prod in cliente['pedido']:
             resposta += f"- {prod} : X{cliente['pedido'][prod]}\n"
+        resposta += '\n'
+        total = "{:.2f}".format(valortotal/100).replace('.',',')
+        resposta += f'Total do custo : R${total}'
         resposta += '\n'
         bot.reply_to(mensagem, resposta) 
 
@@ -241,7 +280,8 @@ Para escolher qual informação deseja informar selecione umas das opções abai
 
     disponiveis = verificaProdutos()
     for disp in disponiveis:
-        resposta += f'/{disp}\n\n'
+        valor = "{:.2f}".format(disponiveis[disp]/100).replace('.',',')
+        resposta += f'/{disp} : R${valor}\n\n'
     bot.reply_to(mensagem, resposta) 
 
 
@@ -256,6 +296,9 @@ Para escolher qual informação deseja informar selecione umas das opções abai
         for prod in cliente['pedido']:
             resposta += f"- {prod} : X{cliente['pedido'][prod]}\n"
         resposta += '\n'
+        total = "{:.2f}".format(cliente['total']/100).replace('.',',')
+        resposta += f'Total do custo : R${total}'
+        resposta += '\n'
         bot.reply_to(mensagem, resposta) 
 
         
@@ -269,12 +312,24 @@ Para escolher qual informação deseja informar selecione umas das opções abai
         resposta += '/finalizar\n\n'
         resposta += '/cancelar\n\n'
         bot.reply_to(mensagem, resposta) 
-        
+
         
     else:
         resposta += 'Atualmente se carrinho está vazio!'
         bot.reply_to(mensagem, resposta)
 
+    ##############
+    # INFORMAÇÕES DE CADASTRO
+    ##############
+
+    resposta = ''
+    resposta +="\n##### INFORMAÇÕES DE CADASTRO #####\n\n"
+    resposta +="""\
+Se deseja alterar informações de cadastro aperte a opção abaixo:
+
+/alterarCadastro\n\n"""
+    bot.reply_to(mensagem, resposta) 
+    
 
 
 # FUNÇÃO QUE PROCURA PELO CLIENTE E VERIFICA SE O CADASTRO ESTÁ COMPLETO
@@ -322,6 +377,7 @@ def resetPedido(cliente):
         adicionaProduto(produto,quantidade)
 
     atualizaDado('pedido',zerado, cliente['idCliente'])
+    atualizaDado('total', 0, cliente['idCliente'])
 
 
 #FUNÇÃO PARA VERIFICAR SE AINDA TEM O PRODUTO NO ESTOQUE
@@ -331,12 +387,12 @@ def verificaProdutos():
     mycol = mydb['estoque']
     pesq = mycol.find({})
 
-    disponiveis = []
+    disponiveis = {}
     
     for prod in pesq:
         if prod['quantidade'] > 0:
-            disponiveis.append(prod['nome'])
-    
+            disponiveis[prod['nome']] = prod['custo']
+
     return disponiveis
 
 
