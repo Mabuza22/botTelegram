@@ -172,6 +172,18 @@ def seleciona(mensagem):
         resposta += '/finalizar\n\n'
         resposta += '/cancelar\n\n'
         bot.reply_to(mensagem, resposta) 
+
+    ##############
+    # INFORMAÇÕES DE CADASTRO
+    ##############
+
+    resposta = ''
+    resposta +="\n##### INFORMAÇÕES DE CADASTRO #####\n\n"
+    resposta +="""\
+Se deseja alterar informações de cadastro aperte a opção abaixo:
+
+/alterarCadastro\n\n"""
+    bot.reply_to(mensagem, resposta) 
     
 
 # FUNÇÃO PARA ATUALIZAR INFORMAÇÕES DO CLIENTE
@@ -345,6 +357,7 @@ def verificaCliente(idCliente):
             'telefone' : None,
             'endereco' : None,
             'pedido' : {},
+            'total' : 0,
             'statusPedido' : 'cancelado',
             'ultimaInteração' : datetime.now()
         }
