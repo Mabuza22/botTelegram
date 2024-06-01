@@ -1,10 +1,8 @@
 import os
-from pprint import pprint
 import dotenv
 from telebot import TeleBot
 from datetime import datetime, timedelta
 from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
 
 
 dotenv.load_dotenv()
@@ -23,6 +21,7 @@ bot = TeleBot(API_KEY)
 # - telefone
 # - endereco
 
+
 # FUNÇÃO PARA FINALIZAR O PEDIDO DE MANEIRA POSITIVA OU NEGATIVA
 @bot.message_handler(commands=['finalizar','cancelar'])
 def fim(mensagem):
@@ -31,6 +30,7 @@ def fim(mensagem):
     escolha = str(entrada['text'])[1:]
     cliente, aCompletar = verificaCliente(idCliente)
     
+    #se selecionou essa opção quando não deveria
     if cliente['statusPedido'] != 'atendendo' or len(aCompletar) > 0 or len(cliente['pedido']) == 0:
         resposta = "Algo de errado aconteceu!"
         bot.reply_to(mensagem, resposta) 
@@ -162,6 +162,11 @@ def naoComando(mensagem):
     entrada = str(dados['text']).strip()
     cliente, aCompletar = verificaCliente(idCliente)
 
+    # NÃO RESPONDER SE A MENSAGEM FOR IGUAL A "/"
+    # USADO PARA TESTE
+    if entrada == '/':
+        return
+
     hora=datetime.now().hour
     if hora >= 5 and hora < 12:
         cumprimento = 'Bom dia'
@@ -277,9 +282,6 @@ def verificaCliente(idCliente):
 
     encontrado = encontraCliente(idCliente)
 
-    if encontrado['ultimaInteração'] <= datetime.now() - timedelta(hours=1):
-        atualizaDado('statusPedido','cancelado',idCliente)
-    atualizaDado('ultimaInteração',datetime.now(),idCliente)
     
     if encontrado is None:
         encontrado = {
@@ -287,16 +289,16 @@ def verificaCliente(idCliente):
             'nome' : None,
             'telefone' : None,
             'endereco' : None,
-            'pedido' : {
-                'morango' : 0,
-                'chocolate' : 0,
-                'baunilha' : 0,
-                'limao' : 0
-            },
+            'pedido' : {},
             'statusPedido' : 'cancelado',
             'ultimaInteração' : datetime.now()
         }
         insereCliente(encontrado)
+    else:
+        if encontrado['ultimaInteração'] <= datetime.now() - timedelta(hours=1):
+            atualizaDado('statusPedido','cancelado',idCliente)
+            resetPedido(encontrado)
+        atualizaDado('ultimaInteração',datetime.now(),idCliente)
 
     aCompletar = []
 
